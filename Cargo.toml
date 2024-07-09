@@ -1,0 +1,16 @@
+[package]
+name = "scs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "^1.0"
+colorous = "^1.0"
+futures = "^0.3"
+macroquad = "^0.4"
+nucleo = "^0.5"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"

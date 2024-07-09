@@ -1,0 +1,9 @@
+# cargo
+/target
+
+# nix
+flake.lock
+
+# macOS
+._*
+.DS_Store
