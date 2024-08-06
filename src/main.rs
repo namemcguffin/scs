@@ -274,7 +274,7 @@ enum UIState {
 fn main() {
     Window::from_config(
         Conf {
-            window_title: "ssc".to_string(),
+            window_title: "scs".to_string(),
             high_dpi: true,
             ..Default::default()
         },
