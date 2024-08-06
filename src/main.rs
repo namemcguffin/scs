@@ -80,15 +80,16 @@ fn read_coords<P: AsRef<Path>>(inp_path: P) -> Result<Vec<CellCoordsBundle>> {
                 .split('\t')
                 .next_chunk()
                 .map_err(|_| anyhow!("less than 3 columns in coord file {}", inp_path.as_ref().display()))?;
-            let x = x.parse::<float>()?;
-            let y = y.parse::<float>()?;
-            Ok((cell.to_string(), x, y))
+            Ok((cell.to_string(), x.parse::<float>()?, y.parse::<float>()?))
         })
         .collect()
 }
 
 fn read_feat<P: AsRef<Path>, S: AsRef<str>>(inp_path: P, gene: S) -> Result<ExprMap> {
-    let mut lines = BufReader::new(File::open(inp_path.as_ref().join(format!("feat/{}.tsv", gene.as_ref())))?).lines();
+    let mut lines = BufReader::new(File::open(
+        inp_path.as_ref().join("feat").join(format!("{}.tsv", gene.as_ref())),
+    )?)
+    .lines();
 
     assert!(
         lines
