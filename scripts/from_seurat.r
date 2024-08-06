@@ -25,11 +25,11 @@ selected_layer <- if (length(cl_args) >= 5) {
 }
 
 dir.create(out_path)
-dir.create(sprintf("%s/feat", out_path))
+dir.create(file.path(out_path, "feat"))
 
 fwrite(
   GetTissueCoordinates(so, selected_fov)[c("cell", "x", "y")],
-  sprintf("%s/cells.tsv", out_path),
+  file.path(out_path, "cells.tsv"),
   sep = "\t"
 )
 
@@ -41,6 +41,6 @@ walk(
       as.data.table(keep.rownames = T) |>
       `colnames<-`(c("cell", "expr")) |>
       _[expr > 0] |>
-      fwrite(sprintf("%s/feat/%s.tsv", out_path, feat), sep = "\t")
+      fwrite(file.path(out_path, "feat", sprintf("%s.tsv", feat)), sep = "\t")
   }
 )

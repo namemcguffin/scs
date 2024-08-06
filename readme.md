@@ -30,7 +30,7 @@ cargo run --release 'input/public' 'output.tsv'
 
 the `scripts` directory contains scripts that can generate input directories for `scs` using common existing data formats (such as seurat)
 
-### generating an input directory from seurat objects: `scripts/seurat.r`
+### generating an input directory from seurat objects: `scripts/from_seurat.r`
 
 generates an input directory from a seurat object saved as an RDS file.
 
@@ -39,12 +39,32 @@ requires the `Seurat`, `data.table`, `purrr` packages to be installed.
 arguments:
 1. input RDS file path
 1. desired output directory
-1. centroid FOV to use for x/y coordinates (optional)
-1. assay to use for features (optional)
-1. layer to use from selected assay for features (optional)
+1. centroid FOV to use for x/y coordinates (optional, defers to seurat's defaults)
+1. assay to use for features (optional, defers to seurat's defaults)
+1. layer to use from selected assay for features (optional, defers to seurat's defaults)
 
 example:
 ```bash
 Rscript 'scripts/seurat.r' 'input/so.rds' 'input/data' # uses seurat's default values for FOV, assay, and layer
-Rscript 'scripts/seurat.r' 'input/so.rds' 'input/data' 'centroids.specific' 'vizgen' 'data' # specific example values
+Rscript 'scripts/seurat.r' 'input/so.rds' 'input/data' 'centroids.specific' 'vizgen' 'data' # specific values
+```
+
+### generating an input directory from anndata objects: `scripts/from_anndata.py`
+
+generates an input directory from an anndata object saved as an h5ad file.
+
+note: expects spatial coordinates to be in an `obsm` slot, not as a set of `obs` columns.
+
+requires the `anndata` and `pandas` packages to be installed.
+
+arguments:
+1. input h5ad file path
+1. desired output directory
+1. `obsm` index to use for spatial coordinates (optional, defaults to `spatial`)
+1. layer index to use (optional, defaults to using `X` matrix)
+
+example:
+```bash
+python 'scripts/from_anndata.py' 'input/adata.h5ad' 'input/data' # uses default values
+python 'scripts/from_anndata.py' 'input/adata.h5ad' 'input/data' 'spatial_centroids' 'counts' # specific values
 ```
