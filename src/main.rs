@@ -8,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use colorous::{Gradient, TURBO};
 use futures::FutureExt;
 use macroquad::{
@@ -31,6 +31,9 @@ use nucleo::{
 // TODO(feat): add some kind of caching for feature colouring
 // TODO(feat): add support for using segmentations instead of centroids
 // TODO(feat): show top N matches for feature names in selector dialog
+// TODO(feat): add edit history / ability to undo
+// TODO(refact): improve error handling
+// TODO(refact): split into separate files
 
 #[allow(non_camel_case_types)]
 type float = f64;
@@ -275,7 +278,11 @@ fn main() {
             high_dpi: true,
             ..Default::default()
         },
-        ui().map(|f| f.unwrap()),
+        ui().map(|f| {
+            if let Err(error) = f {
+                println!("ERROR: {:?}", error)
+            };
+        }),
     );
 }
 
@@ -286,7 +293,8 @@ async fn ui() -> Result<()> {
     let mut bb = None;
     let mut bb_list = Vec::new();
 
-    let valid_genes = read_dir(PathBuf::from(&inp_path).join("feat"))?
+    let valid_genes = read_dir(PathBuf::from(&inp_path).join("feat"))
+        .context("trying to scan feature file directory")?
         .map(|e| {
             let f = e?.path();
             Ok(f.file_stem()
@@ -296,9 +304,10 @@ async fn ui() -> Result<()> {
                 .chars()
                 .collect::<String>())
         })
-        .collect::<Result<Vec<_>>>()?;
+        .collect::<Result<Vec<_>>>()
+        .context("trying to load all feature names")?;
 
-    let cells = read_coords(&inp_path)?;
+    let cells = read_coords(&inp_path).context("trying to read cells.tsv file")?;
 
     // initialize shift to average x/y values
     let mut transform = {
@@ -306,7 +315,7 @@ async fn ui() -> Result<()> {
             .iter()
             .map(|&(ref _cell, x, y)| (x, y))
             .reduce(|(a_x, a_y), (x, y)| (a_x + x, a_y + y))
-            .ok_or_else(|| anyhow!("empty input directory"))?;
+            .ok_or_else(|| anyhow!("no cells in cells.tsv file"))?;
         let l = cells.len() as float;
         (x, y) = (-x / l, -y / l);
         Transform {
@@ -423,7 +432,7 @@ async fn ui() -> Result<()> {
                         KeyCode::Enter => {
                             if !feat_match.0.is_empty() {
                                 let sel_feat = feat_match.0[feat_match.1].0;
-                                let expr_map = read_feat(&inp_path, sel_feat)?;
+                                let expr_map = read_feat(&inp_path, sel_feat).context("trying to read feature file")?;
                                 let max_recip = expr_map
                                     .values()
                                     .cloned()
@@ -604,6 +613,6 @@ async fn ui() -> Result<()> {
         next_frame().await
     }
 
-    write_out(&out_path, &cells, &bb_list)?;
+    write_out(&out_path, &cells, &bb_list).context("trying to write output file")?;
     Ok(())
 }
