@@ -290,7 +290,7 @@ async fn ui() -> Result<()> {
     let mut args = args().skip(1);
     let [inp_path, out_path] = args.next_chunk().map_err(|_| anyhow!("less than two arguments supplied"))?;
 
-    let mut bb = None;
+    let mut bb: Option<Vec<(f64, f64)>> = None;
     let mut bb_list = Vec::new();
 
     let valid_genes = read_dir(PathBuf::from(&inp_path).join("feat"))
@@ -341,6 +341,7 @@ async fn ui() -> Result<()> {
     let mut expr_bundle: Option<ExprMapBundle> = None;
 
     let mut show_only_filtered = false;
+    let mut filtered = Vec::new();
 
     let mut status_config = StatusConfig {
         draw_fps: true,
@@ -377,6 +378,11 @@ async fn ui() -> Result<()> {
                         if let Some(v) = bb.take() {
                             bb_list.push(v);
                         }
+                        cells
+                            .iter()
+                            .filter(|&&(ref _cell, x, y)| bb_list.iter().any(|bb| within_bb(bb, (x, y))))
+                            .cloned()
+                            .collect_into(&mut filtered);
                     }
                     KeyCode::C => {
                         show_only_filtered = !show_only_filtered;
@@ -564,17 +570,7 @@ async fn ui() -> Result<()> {
         }
 
         if show_only_filtered {
-            draw_cells(
-                cells
-                    .iter()
-                    .filter(|&&(ref _cell, x, y)| bb_list.iter().any(|bb| within_bb(bb, (x, y)))),
-                &transform,
-                &expr_bundle,
-                m_x,
-                m_y,
-                w,
-                h,
-            );
+            draw_cells(filtered.iter(), &transform, &expr_bundle, m_x, m_y, w, h);
         } else {
             draw_cells(cells.iter(), &transform, &expr_bundle, m_x, m_y, w, h);
         }
