@@ -64,56 +64,62 @@ type ExprMapBundle = (ExprMap, (String, TextDimensions));
 type CellCoordsBundle = (String, float, float);
 
 fn read_coords<P: AsRef<Path>>(inp_path: P) -> Result<Vec<CellCoordsBundle>> {
-    let mut lines = BufReader::new(File::open(inp_path.as_ref().join("cells.tsv"))?).lines();
+    let fpath = inp_path.as_ref().join("cells.tsv");
+    let mut lines = BufReader::new(File::open(&fpath)?).lines();
 
-    assert!(
-        lines
-            .next()
-            .ok_or_else(|| anyhow!("coord file {} is empty", inp_path.as_ref().display()))??
-            .split('\t')
-            .next_chunk()
-            .map_err(|_| anyhow!("less than 3 columns in header for coord file {}", inp_path.as_ref().display()))?
-            == ["cell", "x", "y"]
-    );
+    let header = lines
+        .next()
+        .ok_or_else(|| anyhow!("coord file {} is empty", inp_path.as_ref().display()))??;
+    let header = header
+        .split('\t')
+        .next_chunk()
+        .map_err(|_| anyhow!("less than 3 columns in header for coord file {}", inp_path.as_ref().display()))?;
+    if header != ["cell", "x", "y"] {
+        return Err(anyhow!(
+            "expected coord file {fpath:?} header to be [\"cell\", \"x\", \"y\"], got {header:?}"
+        ));
+    }
 
     lines
-        .map(|l| {
+        .enumerate()
+        .map(|(i, l)| {
             let l = l?;
             let [cell, x, y] = l
                 .split('\t')
                 .next_chunk()
-                .map_err(|_| anyhow!("less than 3 columns in coord file {}", inp_path.as_ref().display()))?;
+                .map_err(|_| anyhow!("less than 3 columns in coord file {fpath:?} at line {}", i + 1))?;
             Ok((cell.to_string(), x.parse::<float>()?, y.parse::<float>()?))
         })
         .collect()
 }
 
 fn read_feat<P: AsRef<Path>, S: AsRef<str>>(inp_path: P, gene: S) -> Result<ExprMap> {
-    let mut lines = BufReader::new(File::open(
-        inp_path.as_ref().join("feat").join(format!("{}.tsv", gene.as_ref())),
-    )?)
-    .lines();
+    let fpath = inp_path.as_ref().join("feat").join(format!("{}.tsv", gene.as_ref()));
+    let mut lines = BufReader::new(File::open(&fpath)?).lines();
 
-    assert!(
-        lines
-            .next()
-            .ok_or_else(|| anyhow!("feature file file {} is empty", inp_path.as_ref().display()))??
-            .split('\t')
-            .next_chunk()
-            .map_err(|_| anyhow!(
-                "less than 2 columns in header for feature file {}",
-                inp_path.as_ref().display()
-            ))?
-            == ["cell", "expr"]
-    );
+    let header = lines
+        .next()
+        .ok_or_else(|| anyhow!("feature file file {} is empty", inp_path.as_ref().display()))??;
+    let header = header.split('\t').next_chunk().map_err(|_| {
+        anyhow!(
+            "less than 2 columns in header for feature file {}",
+            inp_path.as_ref().display()
+        )
+    })?;
+    if header != ["cell", "expr"] {
+        return Err(anyhow!(
+            "expected feature file {fpath:?} header to be [\"cell\", \"expr\"], got {header:?}"
+        ));
+    }
 
     lines
-        .map(|l| {
+        .enumerate()
+        .map(|(i, l)| {
             let l = l?;
             let [cell, val] = l
                 .split('\t')
                 .next_chunk()
-                .map_err(|_| anyhow!("less than 2 columns in feature file {}", inp_path.as_ref().display()))?;
+                .map_err(|_| anyhow!("less than 2 columns in feature file {fpath:?} at line {}", i + 1))?;
             Ok((cell.to_string(), val.parse::<float>()?))
         })
         .collect()
