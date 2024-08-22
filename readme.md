@@ -9,9 +9,11 @@ which specify the relevant cell identifier and if that cell is within the define
 
 ## usage
 
-requires two arguments: the input directory path and an output path.
+pressing `h` will bring up a small help menu explaining controls.
 
-note: it is heavily recommended to compile `scs` on release mode to achieve consistent performance.
+launching requires two arguments: the input directory path and an output path.
+
+note: it is heavily recommended to compile `scs` on the release profile to achieve consistent performance.
 
 example:
 ```bash

@@ -514,7 +514,7 @@ async fn ui() -> Result<()> {
 
                 if matches!(ui_state, UIState::HelpMenu) {
                     let help_txt = [
-                        "movement:",
+                        "general:",
                         "\t- use mouse left click select create bounding box vertices",
                         "\t- use enter to finish bounding box",
                         "\t- use C to toggle showing only selected cells",
