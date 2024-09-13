@@ -200,12 +200,15 @@ struct Transform {
     shift_y: float,
     zoom: float,
     theta: float,
+    inv_x: bool,
+    inv_y: bool,
 }
 
 impl Transform {
     fn to_pixl(&self, x: float, y: float) -> (f32, f32) {
         let (x, y) = pos_rot(self.theta, x, y);
         let (x, y) = (x + self.shift_x, y + self.shift_y);
+        let (x, y) = (if self.inv_x { -x } else { x }, if self.inv_y { -y } else { y });
         let (x, y) = (x * self.zoom, y * self.zoom);
         let (x, y) = (x as f32, y as f32);
         (x, y)
@@ -213,14 +216,23 @@ impl Transform {
     fn to_real(&self, x: f32, y: f32) -> (float, float) {
         let (x, y) = (x as float, y as float);
         let (x, y) = (x / self.zoom, y / self.zoom);
+        let (x, y) = (if self.inv_x { -x } else { x }, if self.inv_y { -y } else { y });
         let (x, y) = (x - self.shift_x, y - self.shift_y);
         let (x, y) = neg_rot(self.theta, x, y);
         (x, y)
     }
     fn mov(&mut self, x: float, y: float) {
         let recip = self.zoom.recip();
-        self.shift_x += x * recip;
-        self.shift_y += y * recip;
+        if self.inv_x {
+            self.shift_x -= x * recip;
+        } else {
+            self.shift_x += x * recip;
+        }
+        if self.inv_y {
+            self.shift_y -= y * recip;
+        } else {
+            self.shift_y += y * recip;
+        }
     }
     fn zoom_inc(&mut self) {
         self.zoom = (self.zoom * ZOM_SPEED).min(float::MAX);
@@ -229,12 +241,22 @@ impl Transform {
         self.zoom = (self.zoom / ZOM_SPEED).max(0.);
     }
     fn theta_inc(&mut self) {
-        self.theta = (self.theta + ROT_SPEED).rem_euclid(tau);
-        (self.shift_x, self.shift_y) = pos_rot(ROT_SPEED, self.shift_x, self.shift_y);
+        if self.inv_x ^ self.inv_y {
+            self.theta = (self.theta + ROT_SPEED).rem_euclid(tau);
+            (self.shift_x, self.shift_y) = pos_rot(ROT_SPEED, self.shift_x, self.shift_y);
+        } else {
+            self.theta = (self.theta - ROT_SPEED).rem_euclid(tau);
+            (self.shift_x, self.shift_y) = neg_rot(ROT_SPEED, self.shift_x, self.shift_y);
+        };
     }
     fn theta_dec(&mut self) {
-        self.theta = (self.theta - ROT_SPEED).rem_euclid(tau);
-        (self.shift_x, self.shift_y) = neg_rot(ROT_SPEED, self.shift_x, self.shift_y);
+        if self.inv_x ^ self.inv_y {
+            self.theta = (self.theta - ROT_SPEED).rem_euclid(tau);
+            (self.shift_x, self.shift_y) = neg_rot(ROT_SPEED, self.shift_x, self.shift_y);
+        } else {
+            self.theta = (self.theta + ROT_SPEED).rem_euclid(tau);
+            (self.shift_x, self.shift_y) = pos_rot(ROT_SPEED, self.shift_x, self.shift_y);
+        };
     }
 }
 
@@ -269,6 +291,7 @@ fn draw_bool_opt(pos: &mut Vec2, label: &str, ui: &mut Ui, opt: &mut bool) {
 struct StatusConfig {
     draw_fps: bool,
     draw_rot: bool,
+    draw_flip: bool,
 }
 
 enum UIState {
@@ -329,6 +352,8 @@ async fn ui() -> Result<()> {
             shift_y: y,
             zoom: 1.,
             theta: 0.,
+            inv_x: false,
+            inv_y: false,
         }
     };
 
@@ -350,8 +375,9 @@ async fn ui() -> Result<()> {
     let mut filtered = Vec::new();
 
     let mut status_config = StatusConfig {
-        draw_fps: true,
-        draw_rot: true,
+        draw_fps: false,
+        draw_rot: false,
+        draw_flip: false,
     };
 
     let colour_scale = (0..LEGEND_SIZE)
@@ -380,24 +406,6 @@ async fn ui() -> Result<()> {
                     KeyCode::H => {
                         ui_state = UIState::HelpMenu;
                     }
-                    KeyCode::Enter => {
-                        if let Some(v) = bb.take() {
-                            bb_list.push(v);
-                        }
-                        cells
-                            .iter()
-                            .filter(|&&(ref _cell, x, y)| bb_list.iter().any(|bb| within_bb(bb, (x, y))))
-                            .cloned()
-                            .collect_into(&mut filtered);
-                    }
-                    KeyCode::C => {
-                        show_only_filtered = !show_only_filtered;
-                    }
-                    KeyCode::R => {
-                        feat_match.0.clear();
-                        feat_match.1 = 0;
-                        expr_bundle = None;
-                    }
                     KeyCode::Escape => {
                         request_quit();
                     }
@@ -412,6 +420,33 @@ async fn ui() -> Result<()> {
                     }
 
                     let (mut x_mov, mut y_mov): (float, float) = (0., 0.);
+                    get_keys_pressed().into_iter().for_each(|k| match k {
+                        KeyCode::Enter => {
+                            if let Some(v) = bb.take() {
+                                bb_list.push(v);
+                            }
+                            cells
+                                .iter()
+                                .filter(|&&(ref _cell, x, y)| bb_list.iter().any(|bb| within_bb(bb, (x, y))))
+                                .cloned()
+                                .collect_into(&mut filtered);
+                        }
+                        KeyCode::F => {
+                            show_only_filtered = !show_only_filtered;
+                        }
+                        KeyCode::C => {
+                            transform.inv_x = !transform.inv_x;
+                        }
+                        KeyCode::V => {
+                            transform.inv_y = !transform.inv_y;
+                        }
+                        KeyCode::R => {
+                            feat_match.0.clear();
+                            feat_match.1 = 0;
+                            expr_bundle = None;
+                        }
+                        _ => {}
+                    });
                     get_keys_down().into_iter().for_each(|k| match k {
                         KeyCode::A => {
                             x_mov += 1.;
@@ -463,18 +498,25 @@ async fn ui() -> Result<()> {
                             ui_state = UIState::CellSelection;
                             break;
                         }
-                        KeyCode::Tab => {
-                            let l = feat_match.0.len();
-                            if l != 0 {
-                                feat_match.1 += 1;
-                                feat_match.1 %= l;
-                            }
-                        }
                         _ => {}
                     }
                 }
 
                 if matches!(ui_state, UIState::FeatureInput) {
+                    get_keys_pressed().into_iter().for_each(|k| {
+                        #[allow(clippy::single_match)]
+                        match k {
+                            KeyCode::Tab => {
+                                let l = feat_match.0.len();
+                                if l != 0 {
+                                    feat_match.1 += 1;
+                                    feat_match.1 %= l;
+                                }
+                            }
+                            _ => {}
+                        }
+                    });
+
                     // detect input event into editbox using cached previous value
                     if input.ne(&prev_input) {
                         prev_input = input.clone();
@@ -510,12 +552,14 @@ async fn ui() -> Result<()> {
                 }
             }
             UIState::HelpMenu => {
-                #[allow(clippy::single_match)]
-                get_keys_pressed().into_iter().for_each(|k| match k {
-                    KeyCode::Escape => {
-                        ui_state = UIState::CellSelection;
+                get_keys_pressed().into_iter().for_each(|k| {
+                    #[allow(clippy::single_match)]
+                    match k {
+                        KeyCode::Escape => {
+                            ui_state = UIState::CellSelection;
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 });
 
                 if matches!(ui_state, UIState::HelpMenu) {
@@ -523,10 +567,11 @@ async fn ui() -> Result<()> {
                         "general:",
                         "\t- use mouse left click select create bounding box vertices",
                         "\t- use enter to finish bounding box",
-                        "\t- use C to toggle showing only selected cells",
+                        "\t- use F to toggle showing only selected cells",
                         "\t- use W/A/S/D to move along the x/y axis",
                         "\t- use Q/E to rotate",
                         "\t- use Z/X to zoom",
+                        "\t- use C/V to flip x/y axis",
                         "\t- use space to bring up feature selection dialog",
                         "\t- use R to reset colour",
                         "\t- use H to bring up this menu",
@@ -548,7 +593,7 @@ async fn ui() -> Result<()> {
                         TEXT_SIZE_U16,
                         1.,
                     );
-                    let base_height = ((CHECKBOX_MAGIC_H + BORDER_PADDING) * 2.) - BORDER_PADDING;
+                    let base_height = (CHECKBOX_MAGIC_H + BORDER_PADDING) * (std::mem::size_of::<StatusConfig>() as f32);
                     let dialog_size = vec2(
                         help_txt_dims.width + BORDER_PADDING * 2.,
                         base_height + (help_txt_dims.height + BORDER_PADDING) * (help_txt.len() as f32) + 3.,
@@ -565,6 +610,7 @@ async fn ui() -> Result<()> {
                         |ui| {
                             draw_bool_opt(&mut coords, "show fps counter", ui, &mut status_config.draw_fps);
                             draw_bool_opt(&mut coords, "show rotation angle", ui, &mut status_config.draw_rot);
+                            draw_bool_opt(&mut coords, "show x/y axis flip status", ui, &mut status_config.draw_flip);
                             help_txt.iter().fold(base_height, |y, &line| {
                                 Label::new(line).position(vec2(BORDER_PADDING, y)).ui(ui);
                                 y + help_txt_dims.height + BORDER_PADDING
@@ -610,6 +656,16 @@ async fn ui() -> Result<()> {
         }
         if status_config.draw_rot {
             draw_status(&format!("rotation angle: {:.2}", transform.theta.to_degrees()), &mut height);
+        }
+        if status_config.draw_flip {
+            draw_status(
+                &format!(
+                    "x/y: {}/{}",
+                    if transform.inv_x { "flip" } else { "orig" },
+                    if transform.inv_y { "flip" } else { "orig" }
+                ),
+                &mut height,
+            );
         }
 
         next_frame().await
