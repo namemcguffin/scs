@@ -49,9 +49,9 @@ const BORDER_PADDING: f32 = 3.;
 const TEXT_SIZE: f32 = 18.;
 const TEXT_SIZE_U16: u16 = TEXT_SIZE as u16;
 const CONTINUOUS_PALLETE: Gradient = TURBO;
-const MOV_SPEED: float = 10.;
-const ROT_SPEED: float = 0.01;
-const ZOM_SPEED: float = 1.02;
+const MOV_SPEED: float = 384.;
+const ROT_SPEED: float = tau / 8.;
+const ZOM_SPEED: float = 2.56;
 const DIALOG_BOX_W: f32 = 200.;
 const DIALOG_BOX_H: f32 = 80.;
 const EDIT_BOX_W: f32 = 194.;
@@ -202,6 +202,7 @@ struct Transform {
     theta: float,
     inv_x: bool,
     inv_y: bool,
+    frame_time: float,
 }
 
 impl Transform {
@@ -222,40 +223,42 @@ impl Transform {
         (x, y)
     }
     fn mov(&mut self, x: float, y: float) {
-        let recip = self.zoom.recip();
+        let mult = self.zoom.recip() * self.frame_time;
         if self.inv_x {
-            self.shift_x -= x * recip;
+            self.shift_x -= x * mult;
         } else {
-            self.shift_x += x * recip;
+            self.shift_x += x * mult;
         }
         if self.inv_y {
-            self.shift_y -= y * recip;
+            self.shift_y -= y * mult;
         } else {
-            self.shift_y += y * recip;
+            self.shift_y += y * mult;
         }
     }
     fn zoom_inc(&mut self) {
-        self.zoom = (self.zoom * ZOM_SPEED).min(float::MAX);
+        self.zoom = (self.zoom * ZOM_SPEED.powf(self.frame_time)).min(float::MAX);
     }
     fn zoom_dec(&mut self) {
-        self.zoom = (self.zoom / ZOM_SPEED).max(0.);
+        self.zoom = (self.zoom / ZOM_SPEED.powf(self.frame_time)).max(0.);
     }
     fn theta_inc(&mut self) {
+        let scaled_rot = ROT_SPEED * self.frame_time;
         if self.inv_x ^ self.inv_y {
-            self.theta = (self.theta + ROT_SPEED).rem_euclid(tau);
-            (self.shift_x, self.shift_y) = pos_rot(ROT_SPEED, self.shift_x, self.shift_y);
+            self.theta = (self.theta + scaled_rot).rem_euclid(tau);
+            (self.shift_x, self.shift_y) = pos_rot(scaled_rot, self.shift_x, self.shift_y);
         } else {
-            self.theta = (self.theta - ROT_SPEED).rem_euclid(tau);
-            (self.shift_x, self.shift_y) = neg_rot(ROT_SPEED, self.shift_x, self.shift_y);
+            self.theta = (self.theta - scaled_rot).rem_euclid(tau);
+            (self.shift_x, self.shift_y) = neg_rot(scaled_rot, self.shift_x, self.shift_y);
         };
     }
     fn theta_dec(&mut self) {
+        let scaled_rot = ROT_SPEED * self.frame_time;
         if self.inv_x ^ self.inv_y {
-            self.theta = (self.theta - ROT_SPEED).rem_euclid(tau);
-            (self.shift_x, self.shift_y) = neg_rot(ROT_SPEED, self.shift_x, self.shift_y);
+            self.theta = (self.theta - scaled_rot).rem_euclid(tau);
+            (self.shift_x, self.shift_y) = neg_rot(scaled_rot, self.shift_x, self.shift_y);
         } else {
-            self.theta = (self.theta + ROT_SPEED).rem_euclid(tau);
-            (self.shift_x, self.shift_y) = pos_rot(ROT_SPEED, self.shift_x, self.shift_y);
+            self.theta = (self.theta + scaled_rot).rem_euclid(tau);
+            (self.shift_x, self.shift_y) = pos_rot(scaled_rot, self.shift_x, self.shift_y);
         };
     }
 }
@@ -354,6 +357,7 @@ async fn ui() -> Result<()> {
             theta: 0.,
             inv_x: false,
             inv_y: false,
+            frame_time: get_frame_time() as float,
         }
     };
 
@@ -396,6 +400,8 @@ async fn ui() -> Result<()> {
         let w = screen_width();
         let h = screen_height();
         let (m_x, m_y) = (w / 2., h / 2.);
+
+        transform.frame_time = get_frame_time() as float;
 
         match ui_state {
             UIState::CellSelection => {
