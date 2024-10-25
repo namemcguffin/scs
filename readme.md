@@ -20,6 +20,10 @@ example:
 cargo run --release 'input/public' 'output.tsv'
 ```
 
+### workflow demonstration
+
+a jupyter notebook (`scripts/demo.ipynb`) is provided to demonstrate how to use `scs` within the context of a scanpy-driven analysis
+
 ## input directory structure
 
 `scs` expects the input directory to have the following structure:
