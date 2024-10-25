@@ -11,11 +11,12 @@ which specify the relevant cell identifier and if that cell is within the define
 
 pressing `h` will bring up a small help menu explaining controls.
 
-launching requires two arguments: the input directory path and an output path.
+takes two arguments: the input directory path (mandatory) and an output path (optional, will default to standard out if no path is provided)
 
 note: it is heavily recommended to compile `scs` on the release profile to achieve consistent performance.
 
 example:
+
 ```bash
 cargo run --release 'input/public' 'output.tsv'
 ```
@@ -27,6 +28,7 @@ a jupyter notebook (`scripts/demo.ipynb`) is provided to demonstrate how to use 
 ## input directory structure
 
 `scs` expects the input directory to have the following structure:
+
 - a top-level `cells.tsv` file with three columns: `cell` (specifying a cell identifier), `x` (specifying the cell's x coordinate), and `y` (specifying the cell's y coordinate)
 - a directory called `feat`, which contains feature files
   - each feature file should have the name `{FEATURE_NAME}.tsv` (e.g. `Yap1.tsv` for the `Yap1` feature)
@@ -43,6 +45,7 @@ generates an input directory from a seurat object saved as an RDS file.
 requires the `Seurat`, `data.table`, `purrr` packages to be installed.
 
 arguments:
+
 1. input RDS file path
 1. desired output directory
 1. centroid FOV to use for x/y coordinates (optional, defers to seurat's defaults)
@@ -50,6 +53,7 @@ arguments:
 1. layer to use from selected assay for features (optional, defers to seurat's defaults)
 
 example:
+
 ```bash
 Rscript 'scripts/seurat.r' 'input/so.rds' 'input/data' # uses seurat's default values for FOV, assay, and layer
 Rscript 'scripts/seurat.r' 'input/so.rds' 'input/data' 'centroids.specific' 'vizgen' 'data' # specific values
@@ -64,12 +68,14 @@ note: expects spatial coordinates to be in an `obsm` slot, not as a set of `obs`
 requires the `anndata` and `pandas` packages to be installed.
 
 arguments:
+
 1. input h5ad file path
 1. desired output directory
 1. `obsm` index to use for spatial coordinates (optional, defaults to `spatial`)
 1. layer index to use (optional, defaults to using `X` matrix)
 
 example:
+
 ```bash
 python 'scripts/from_anndata.py' 'input/adata.h5ad' 'input/data' # uses default values
 python 'scripts/from_anndata.py' 'input/adata.h5ad' 'input/data' 'spatial_centroids' 'counts' # specific values

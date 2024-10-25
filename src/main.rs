@@ -3,8 +3,8 @@
 use std::{
     collections::HashMap,
     env::args,
-    fs::{read_dir, write, File},
-    io::{BufRead, BufReader},
+    fs::{read_dir, File},
+    io::{stdout, BufRead, BufReader, Write},
     path::{Path, PathBuf},
 };
 
@@ -125,13 +125,13 @@ fn read_feat<P: AsRef<Path>, S: AsRef<str>>(inp_path: P, gene: S) -> Result<Expr
         .collect()
 }
 
-fn write_out<P: AsRef<Path>>(out_path: P, cells: &[CellCoordsBundle], bb_list: &[Vec<(float, float)>]) -> Result<()> {
+fn write_out<W: Write>(out_sink: &mut W, cells: &[CellCoordsBundle], bb_list: &[Vec<(float, float)>]) -> Result<()> {
     let mut out = vec![["cell", "within_bb"].join("\t")];
     cells
         .iter()
         .map(|&(ref cell, x, y)| [cell, bb_list.iter().any(|bb| within_bb(bb, (x, y))).to_string().as_str()].join("\t"))
         .collect_into(&mut out);
-    write(out_path, out.join("\n"))?;
+    out_sink.write_all(out.join("\n").as_bytes())?;
     Ok(())
 }
 
@@ -320,7 +320,17 @@ fn main() {
 
 async fn ui() -> Result<()> {
     let mut args = args().skip(1);
-    let [inp_path, out_path] = args.next_chunk().map_err(|_| anyhow!("less than two arguments supplied"))?;
+    let inp_path = args
+        .next()
+        .ok_or_else(|| anyhow!("input path must be supplied as argument"))?;
+    let out_path = args
+        .next()
+        .map(|p| {
+            File::create(&p)
+                .with_context(|| format!("trying to open output file {p}"))
+                .map(|e| (p, e))
+        })
+        .transpose()?;
 
     let mut bb: Option<Vec<(f64, f64)>> = None;
     let mut bb_list = Vec::new();
@@ -677,6 +687,9 @@ async fn ui() -> Result<()> {
         next_frame().await
     }
 
-    write_out(&out_path, &cells, &bb_list).context("trying to write output file")?;
+    match out_path {
+        Some((p, mut f)) => write_out(&mut f, &cells, &bb_list).with_context(|| format!("trying to write output to {p}")),
+        None => write_out(&mut stdout(), &cells, &bb_list).context("trying to write output to standard out"),
+    }?;
     Ok(())
 }
