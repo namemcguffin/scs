@@ -28,6 +28,8 @@
           xorg.libXrandr
           xorg.libXi
           xorg.libX11
+          zlib
+          stdenv.cc.cc.lib
         ];
         packages = [
           cargo-dist
