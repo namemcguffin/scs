@@ -26,14 +26,17 @@ use nucleo::{
     Config, Matcher,
 };
 
+// TODO(refact): split into separate files
+// TODO(feat): add ability to launch without arguments and open directory through UI
+// TODO(feat): add ability to change controls (config file? env vars? arguments?)
+// TODO(feat): add ability to change colour scheme
 // TODO(feat): draggable/editable bounding box points
 // TODO(feat): add support for discrete features
-// TODO(feat): add some kind of caching for feature colouring
 // TODO(feat): add support for using segmentations instead of centroids
 // TODO(feat): show top N matches for feature names in selector dialog
 // TODO(feat): add edit history / ability to undo
+// TODO(perf): add some kind of caching for feature colouring
 // TODO(refact): improve error handling
-// TODO(refact): split into separate files
 
 #[allow(non_camel_case_types)]
 type float = f64;
@@ -399,17 +402,45 @@ async fn ui() -> Result<()> {
         .map(|c| Color::from_rgba(c.r, c.g, c.b, 255))
         .collect::<Vec<_>>();
 
+    let mut quit_attempt = false;
+    let mut quit_success = false;
     prevent_quit();
+
     loop {
         clear_background(BLACK);
-
-        if is_quit_requested() {
-            break;
-        }
 
         let w = screen_width();
         let h = screen_height();
         let (m_x, m_y) = (w / 2., h / 2.);
+
+        if is_quit_requested() {
+            quit_attempt = true;
+        };
+        if quit_success {
+            break;
+        }
+        if quit_attempt {
+            let quit_size = measure_text("CONFIRM QUIT?YESNO", None, TEXT_SIZE_U16, 1.);
+            let exit_dialog_size = vec2(quit_size.width + 9., quit_size.height + 15.);
+            root_ui().window(
+                hash!(hash!(format!("{}{}", m_x, m_y), hash!())),
+                vec2(m_x, m_y) - exit_dialog_size / 2.,
+                exit_dialog_size,
+                |ui| {
+                    ui.label(None, "CONFIRM QUIT?");
+                    ui.same_line(0.);
+                    if ui.button(None, "YES") {
+                        quit_success = true;
+                    }
+                    ui.same_line(0.);
+                    if ui.button(None, "NO") {
+                        quit_attempt = false;
+                    };
+                },
+            );
+            next_frame().await;
+            continue;
+        };
 
         transform.frame_time = get_frame_time() as float;
 
@@ -537,6 +568,7 @@ async fn ui() -> Result<()> {
                     if input.ne(&prev_input) {
                         prev_input = input.clone();
                         pat.reparse(&input, CaseMatching::Ignore, Normalization::Smart);
+                        // TODO(perf): determine if it's worthwhile for matching to be moved to a background thread
                         let mut matches = pat.match_list(&valid_genes, &mut matcher);
                         matches.retain(|(_m, s)| 0.ne(s));
                         matches.sort_unstable_by(|lhs, rhs| rhs.1.cmp(&lhs.1));
@@ -545,26 +577,21 @@ async fn ui() -> Result<()> {
 
                     let dialog_size = vec2(DIALOG_BOX_W, DIALOG_BOX_H);
                     let window_pos = vec2(m_x, m_y) - dialog_size / 2.;
-                    root_ui().window(
-                        hash!(format!("{}{}", window_pos.x, window_pos.y), hash!()),
-                        window_pos,
-                        dialog_size,
-                        |ui| {
-                            let edit_box_id = hash!();
-                            ui.label(None, "select a gene:");
-                            ui.separator();
-                            Editbox::new(edit_box_id, vec2(EDIT_BOX_W, EDIT_BOX_H))
-                                .multiline(false)
-                                .ui(ui, &mut input);
-                            ui.set_input_focus(edit_box_id);
-                            ui.separator();
-                            if !feat_match.0.is_empty() {
-                                ui.label(None, &format!("selected: {}", feat_match.0[feat_match.1].0));
-                            } else {
-                                ui.label(None, "no match found");
-                            }
-                        },
-                    );
+                    root_ui().window(hash!(format!("{}{}", m_x, m_y), hash!()), window_pos, dialog_size, |ui| {
+                        let edit_box_id = hash!();
+                        ui.label(None, "select a gene:");
+                        ui.separator();
+                        Editbox::new(edit_box_id, vec2(EDIT_BOX_W, EDIT_BOX_H))
+                            .multiline(false)
+                            .ui(ui, &mut input);
+                        ui.set_input_focus(edit_box_id);
+                        ui.separator();
+                        if !feat_match.0.is_empty() {
+                            ui.label(None, &format!("selected: {}", feat_match.0[feat_match.1].0));
+                        } else {
+                            ui.label(None, "no match found");
+                        }
+                    });
                 }
             }
             UIState::HelpMenu => {
