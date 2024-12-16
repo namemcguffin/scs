@@ -25,7 +25,13 @@ cargo run --release 'input/public' 'output.tsv'
 
 ### workflow demonstration
 
-a jupyter notebook (`scripts/demo.ipynb`) is provided to demonstrate how to use `scs` within the context of a scanpy-driven analysis
+a jupyter notebook (`scripts/demo.ipynb`) is provided to demonstrate how to use `scs` within the context of a scanpy-driven analysis.
+
+the notebook requires the `pandas`, `anndata`, `numpy`, and `scanpy` packages to be installed, which can be done via the following command using the uv tool (installation instructions [here](https://docs.astral.sh/uv/getting-started/installation/)):
+
+```bash
+uv pip install pandas anndata numpy scanpy
+```
 
 ## input directory structure
 
@@ -44,7 +50,11 @@ the `scripts` directory contains scripts that can generate input directories for
 
 generates an input directory from a seurat object saved as an RDS file.
 
-requires the `Seurat`, `data.table`, `purrr` packages to be installed.
+requires the `Seurat`, `data.table`, `purrr` packages to be installed, which can be done via the following command:
+
+```bash
+R -q -e 'if (system.file(package = "pak") == "") { install.packages("pak") }; pak::pak(c("Seurat", "data.table", "purrr"))'
+```
 
 arguments:
 
@@ -67,7 +77,11 @@ generates an input directory from an anndata object saved as an h5ad file.
 
 note: expects spatial coordinates to be in an `obsm` slot, not as a set of `obs` columns.
 
-requires the `anndata` and `pandas` packages to be installed.
+requires the `anndata` and `pandas` packages to be installed, which can be done via the following command using the uv tool (installation instructions [here](https://docs.astral.sh/uv/getting-started/installation/)):
+
+```bash
+uv pip install anndata scanpy
+```
 
 arguments:
 
@@ -76,7 +90,7 @@ arguments:
 1. `obsm` index to use for spatial coordinates (optional, defaults to `spatial`)
 1. layer index to use (optional, defaults to using `X` matrix)
 
-example:
+example (make sure to activate the virtual environment where `anndata` and `scanpy` were installed before running):
 
 ```bash
 python 'scripts/from_anndata.py' 'input/adata.h5ad' 'input/data' # uses default values
