@@ -8,13 +8,12 @@
     {
       devShells."aarch64-darwin".default = with nixpkgs.legacyPackages."aarch64-darwin"; mkShell {
         buildInputs = [
-          darwin.apple_sdk.frameworks.Foundation
-          darwin.apple_sdk.frameworks.AppKit
-          darwin.apple_sdk.frameworks.Vision
-          darwin.apple_sdk.frameworks.AVFoundation
-          darwin.apple_sdk.frameworks.MetalKit
           darwin.libiconv
-        ];
+        ] ++ (
+          builtins.filter
+            (e: (builtins.tryEval e).success)
+            (builtins.attrValues pkgs.darwin.apple_sdk.frameworks)
+        );
         packages = [
           cargo-dist
         ];
