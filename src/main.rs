@@ -356,17 +356,20 @@ async fn ui() -> Result<()> {
 
     // initialize shift to average x/y values
     let mut transform = {
-        let (mut x, mut y) = cells
-            .iter()
-            .map(|&(ref _cell, x, y)| (x, y))
-            .reduce(|(a_x, a_y), (x, y)| (a_x + x, a_y + y))
-            .ok_or_else(|| anyhow!("no cells in cells.tsv file"))?;
+        let mut iter = cells.iter().map(|&(ref _cell, x, y)| (x, y));
+        let (init_x, init_y) = iter.next().ok_or_else(|| anyhow!("no cells in cells.tsv file"))?;
+        let (mut avg_x, mut avg_y, min_x, min_y, max_x, max_y) = iter.fold(
+            (init_x, init_y, init_x, init_y, init_x, init_y),
+            |(a_x, a_y, min_x, min_y, max_x, max_y), (x, y)| {
+                (a_x + x, a_y + y, min_x.min(x), min_y.min(y), max_x.max(x), max_y.max(y))
+            },
+        );
         let l = cells.len() as float;
-        (x, y) = (-x / l, -y / l);
+        (avg_x, avg_y) = (-avg_x / l, -avg_y / l);
         Transform {
-            shift_x: x,
-            shift_y: y,
-            zoom: 1.,
+            shift_x: avg_x,
+            shift_y: avg_y,
+            zoom: ((screen_width() as f64) / (max_x - min_x)).min((screen_height() as f64) / (max_y - min_y)),
             theta: 0.,
             inv_x: false,
             inv_y: false,
