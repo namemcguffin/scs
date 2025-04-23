@@ -4,7 +4,7 @@
 
 `scs` is a program that allows for the selection of spatially annotated points within a dataset using arbitrary bounding boxes.
 
-given a dataset as input, once selection is complete, it will generate as output a TSV file with two columns, `cell` and `within`,
+given a dataset as input, once selection is complete, it will generate as output a TSV file with two columns, `cell` and `within_bb`,
 which specify the relevant cell identifier and if that cell is within the defined bounding boxe(s).
 
 to compile this project, you will need to install a rust compiler, instructions for which can be found [here](https://www.rust-lang.org/tools/install)
