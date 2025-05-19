@@ -5,6 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: rustup component add clippy rustfmt
       - run: cargo check --verbose
       - run: cargo clippy --verbose
       - run: cargo fmt -- --check --verbose
