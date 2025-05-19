@@ -315,7 +315,7 @@ fn main() {
         },
         ui().map(|f| {
             if let Err(error) = f {
-                println!("ERROR: {:?}", error)
+                println!("ERROR: {error:?}")
             };
         }),
     );
